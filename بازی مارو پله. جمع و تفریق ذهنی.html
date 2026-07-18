@@ -1,0 +1,979 @@
+<meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>بازی جمع و تفریق ذهنی</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;900&display=swap" media="print" onload="this.media='all'">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Vazirmatn', Tahoma, sans-serif;
+  background: #0a0a1a;
+  min-height: 100vh;
+  overflow-x: hidden;
+  color: #fff;
+}
+
+#stars-canvas {
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 0; pointer-events: none;
+}
+
+.screen {
+  display: none;
+  position: relative; z-index: 1;
+  min-height: 100vh;
+}
+.screen.active { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+
+/* NEON BOX */
+.neon-box {
+  border-radius: 16px;
+  padding: 18px 32px;
+  text-align: center;
+  position: relative;
+  background: rgba(10,10,30,0.85);
+  border: 2px solid;
+  box-shadow: 0 0 18px var(--nc), 0 0 40px var(--nc), inset 0 0 18px rgba(255,255,255,0.04);
+}
+.neon-box.cyan  { --nc: #00e5ff; border-color: #00e5ff; }
+.neon-box.pink  { --nc: #ff4dff; border-color: #ff4dff; }
+.neon-box.gold  { --nc: #ffd700; border-color: #ffd700; }
+.neon-box.green { --nc: #39ff14; border-color: #39ff14; }
+.neon-box::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.07) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+/* SCREEN 1 */
+#screen1 { gap: 16px; }
+.title-box h1 {
+  font-size: clamp(1.5rem, 3.5vw, 2.4rem);
+  font-weight: 900;
+  color: #00e5ff;
+  text-shadow: 0 0 10px #00e5ff, 0 0 30px #00e5ff;
+}
+.input-box input {
+  background: transparent; border: none; outline: none;
+  color: #fff; font-size: 1.3rem; font-family: inherit;
+  text-align: center; width: 100%; caret-color: #ff4dff;
+}
+.input-box input::placeholder { color: rgba(255,77,255,0.5); }
+.teacher-box p { font-size: 1rem; color: #ffd700; }
+.mode-row { display: flex; gap: 16px; }
+.mode-btn {
+  flex: 1; padding: 14px 10px; font-size: 1.1rem;
+  font-family: inherit; cursor: pointer; border-radius: 14px;
+  border: 2px solid; background: rgba(10,10,30,0.8); color: #fff;
+  font-weight: 700; transition: all 0.25s;
+}
+.mode-btn.solo { border-color: #00e5ff; color: #00e5ff; }
+.mode-btn.duo  { border-color: #ff4dff; color: #ff4dff; }
+.mode-btn.selected, .mode-btn:hover { background: rgba(255,255,255,0.1); transform: scale(1.06); }
+.start-btn {
+  padding: 16px 44px; font-size: 1.2rem; font-family: inherit;
+  font-weight: 900; cursor: pointer; border-radius: 16px;
+  border: 2px solid #39ff14; background: rgba(57,255,20,0.12);
+  color: #39ff14; box-shadow: 0 0 20px #39ff14, 0 0 40px #39ff14;
+  transition: all 0.2s;
+}
+.start-btn:hover { background: rgba(57,255,20,0.25); transform: scale(1.05) translateY(-2px); }
+
+/* ===== SCREEN 2 ===== */
+/* Layout: [right panel] [board] [left panel] -- RTL so right panel is first in DOM */
+#screen2 {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px;
+  min-height: 100vh;
+}
+
+#board-wrap { position: relative; flex-shrink: 0; }
+#board-canvas { display: block; border-radius: 10px; box-shadow: 0 0 30px rgba(0,229,255,0.35); }
+
+/* RIGHT PANEL -- turn/score info */
+#right-panel {
+  display: flex; flex-direction: column; gap: 12px; align-items: center;
+  width: 150px; flex-shrink: 0;
+}
+#turn-indicator {
+  padding: 10px 12px; border-radius: 12px; border: 2px solid #00e5ff;
+  background: rgba(0,229,255,0.08); box-shadow: 0 0 14px #00e5ff;
+  font-size: 0.95rem; color: #00e5ff; text-align: center; font-weight: 700;
+  width: 100%; line-height: 1.4;
+}
+#score-board {
+  padding: 5px 10px; border-radius: 12px; border: 2px solid #ff4dff;
+  background: rgba(255,77,255,0.06); box-shadow: 0 0 14px #ff4dff;
+  font-size: 0.75rem; color: #fff; text-align: center; width: 100%;
+  line-height: 1.35;
+}
+#score-board h3 { color: #ff4dff; margin-bottom: 2px; font-size: 0.78rem; }
+#restart-btn {
+  padding: 9px 16px; font-family: inherit; font-size: 0.85rem; font-weight: 700;
+  cursor: pointer; border-radius: 10px; border: 2px solid #ff9800;
+  background: rgba(255,152,0,0.12); color: #ff9800; box-shadow: 0 0 10px #ff9800;
+  transition: all 0.2s; width: 100%;
+}
+#restart-btn:hover { background: rgba(255,152,0,0.25); transform: scale(1.04); }
+
+/* LEFT PANEL -- dice */
+#left-panel {
+  display: flex; flex-direction: column; gap: 10px; align-items: center;
+  width: 100px; flex-shrink: 0;
+}
+#dice-canvas {
+  cursor: pointer;
+  filter: drop-shadow(0 0 10px #ffd700);
+  transition: transform 0.1s;
+}
+#dice-canvas:hover { transform: scale(1.1); }
+#dice-canvas:active { transform: scale(0.93); }
+#dice-label {
+  font-size: 0.78rem; color: #ffd700; text-align: center;
+  text-shadow: 0 0 6px #ffd700; line-height: 1.3;
+}
+
+/* QUESTION OVERLAY */
+#q-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,10,0.87); z-index: 100;
+  align-items: center; justify-content: center; flex-direction: column; padding: 20px;
+}
+#q-overlay.show { display: flex; }
+#q-box { max-width: 420px; width: 100%; text-align: center; }
+#q-text {
+  font-size: clamp(1.8rem, 5vw, 2.8rem); font-weight: 900; color: #fff;
+  margin-bottom: 20px; text-shadow: 0 0 8px rgba(255,255,255,0.5);
+  direction: ltr; unicode-bidi: plaintext;
+}
+#q-input {
+  width: 100%; padding: 14px; border-radius: 12px; border: 2px solid #00e5ff;
+  background: rgba(0,229,255,0.08); color: #fff; font-size: 1.5rem;
+  font-family: inherit; text-align: center; outline: none; box-shadow: 0 0 12px #00e5ff;
+}
+#q-input:focus { box-shadow: 0 0 24px #00e5ff; }
+#q-submit {
+  margin-top: 14px; padding: 14px 40px; font-family: inherit; font-size: 1.2rem;
+  font-weight: 700; cursor: pointer; border-radius: 12px; border: 2px solid #39ff14;
+  background: rgba(57,255,20,0.15); color: #39ff14; box-shadow: 0 0 16px #39ff14;
+  transition: all 0.2s;
+}
+#q-submit:hover { background: rgba(57,255,20,0.3); transform: scale(1.05); }
+
+/* FEEDBACK */
+#feedback {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,10,0.88);
+  z-index: 110; align-items: center; justify-content: center;
+  flex-direction: column; gap: 16px; font-size: 2rem; font-weight: 900;
+  text-align: center; padding: 20px;
+}
+#feedback.show { display: flex; }
+#feedback-text { text-shadow: 0 0 20px currentColor; }
+
+/* WIN */
+#win-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,10,0.9);
+  z-index: 120; align-items: center; justify-content: center;
+  flex-direction: column; gap: 20px; text-align: center; padding: 20px;
+}
+#win-overlay.show { display: flex; }
+#win-text {
+  font-size: clamp(1.4rem, 4vw, 2.4rem); font-weight: 900; color: #ffd700;
+  text-shadow: 0 0 20px #ffd700, 0 0 40px #ffd700; max-width: 500px;
+}
+#confetti-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 115; }
+#play-again-btn {
+  padding: 14px 36px; font-family: inherit; font-size: 1.1rem; font-weight: 700;
+  cursor: pointer; border-radius: 12px; border: 2px solid #00e5ff;
+  background: rgba(0,229,255,0.15); color: #00e5ff; box-shadow: 0 0 16px #00e5ff;
+  transition: all 0.2s;
+}
+#play-again-btn:hover { background: rgba(0,229,255,0.3); transform: scale(1.05); }
+
+@media (max-width: 780px) {
+  #screen2 { flex-direction: column; align-items: center; }
+  #right-panel, #left-panel { flex-direction: row; flex-wrap: wrap; width: 100%; justify-content: center; }
+  #right-panel { order: -1; }
+}
+</style>
+</head>
+<body>
+
+<canvas id="stars-canvas"></canvas>
+<canvas id="confetti-canvas"></canvas>
+
+<!-- ======== SCREEN 1 ======== -->
+<div id="screen1" class="screen active">
+  <div class="neon-box cyan title-box" style="width:min(520px,95vw)">
+    <h1>🎮 بازی جمع و تفریق ذهنی</h1>
+  </div>
+
+  <div class="neon-box pink input-box" style="width:min(360px,90vw)">
+    <p style="color:#ff4dff;font-size:0.9rem;margin-bottom:8px">نام دانش‌آموز را بنویس:</p>
+    <input type="text" id="player1-name" placeholder="اسمت رو اینجا بنویس ✏️" maxlength="20">
+  </div>
+
+  <div class="neon-box pink input-box" id="player2-box" style="width:min(360px,90vw);display:none">
+    <p style="color:#ff4dff;font-size:0.9rem;margin-bottom:8px">نام بازیکن دوم:</p>
+    <input type="text" id="player2-name" placeholder="اسمت رو اینجا بنویس ✏️" maxlength="20">
+  </div>
+
+  <div class="neon-box gold teacher-box" style="width:min(360px,90vw)">
+    <p>👩‍🏫 آموزگار: مرضیه ارمغانی</p>
+  </div>
+
+  <div class="mode-row" style="width:min(360px,90vw)">
+    <button class="mode-btn solo selected" onclick="selectMode(1)">🧑 تک‌نفره</button>
+    <button class="mode-btn duo" onclick="selectMode(2)">👫 دونفره</button>
+  </div>
+
+  <button class="start-btn" onclick="startGame()">اگه آماده‌ای بزن بریم! 🚀</button>
+</div>
+
+<!-- ======== SCREEN 2 ======== -->
+<!-- RTL: right-panel first = appears on right, left-panel last = appears on left -->
+<div id="screen2" class="screen">
+  <div id="right-panel">
+    <div id="turn-indicator">نوبت: --</div>
+    <div id="score-board">
+      <h3>📍 موقعیت</h3>
+      <div id="positions-text"></div>
+    </div>
+    <button id="restart-btn" onclick="goHome()">🏠 صفحه اصلی</button>
+  </div>
+
+  <div id="board-wrap">
+    <canvas id="board-canvas"></canvas>
+  </div>
+
+  <div id="left-panel">
+    <canvas id="dice-canvas" width="82" height="82"></canvas>
+    <div id="dice-label">روی تاس<br>ضربه بزن!</div>
+  </div>
+</div>
+
+<!-- QUESTION OVERLAY -->
+<div id="q-overlay">
+  <div class="neon-box cyan" id="q-box" style="width:min(420px,95vw);padding:30px">
+    <div style="font-size:1rem;color:#00e5ff;margin-bottom:12px">🧮 سوال ریاضی:</div>
+    <div id="q-text"></div>
+    <input type="number" id="q-input" placeholder="جواب را بنویس">
+    <br>
+    <button id="q-submit" onclick="submitAnswer()">✅ تأیید</button>
+  </div>
+</div>
+
+<!-- FEEDBACK -->
+<div id="feedback">
+  <div id="feedback-text"></div>
+</div>
+
+<!-- WIN -->
+<div id="win-overlay">
+  <div style="font-size:5rem">🏆</div>
+  <div id="win-text"></div>
+  <button id="play-again-btn" onclick="goHome()">🔄 بازی مجدد</button>
+</div>
+
+<script>
+// =================== STARS ===================
+(function(){
+  const c=document.getElementById('stars-canvas');
+  const ctx=c.getContext('2d');
+  let stars=[];
+  function resize(){ c.width=innerWidth; c.height=innerHeight; }
+  function init(){
+    resize(); stars=[];
+    for(let i=0;i<180;i++)
+      stars.push({x:Math.random()*c.width,y:Math.random()*c.height,r:Math.random()*1.5+0.3,a:Math.random(),da:Math.random()*0.005+0.002});
+  }
+  function draw(){
+    ctx.clearRect(0,0,c.width,c.height);
+    stars.forEach(s=>{
+      s.a+=s.da; if(s.a>1||s.a<0)s.da*=-1;
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(255,255,255,${s.a})`; ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize',init);
+  init(); draw();
+})();
+
+// =================== QUESTIONS ===================
+const QUESTIONS=[
+  {q:'۳۰+۴۰',a:70},{q:'۹۰-۸۰',a:10},{q:'۲۰+۵+۵',a:30},{q:'۱۹+۷',a:26},
+  {q:'۹۰-۴۰',a:50},{q:'۴۵+۵+۱۰',a:60},{q:'۱۰+۱۰+۳۰+۵',a:55},{q:'۴۹+۹',a:58},
+  {q:'۶۵+۵',a:70},{q:'۸+۷',a:15},{q:'۵+۵+۵+۵+۵+۵',a:30},{q:'۲+۲+۲+۲+۲+۲+۲+۲',a:16},
+  {q:'۸+۲+۸',a:18},{q:'۷+۷',a:14},{q:'۶+۶',a:12},{q:'۲۰+۱۰+۱۰+۴۰',a:80},
+  {q:'۴+۴+۴',a:12},{q:'۱+۳+۷',a:11},{q:'۵+۱۰+۱۵',a:30},{q:'۱۰+۶+۴+۹',a:29},
+  {q:'۵۰-۳۰',a:20},{q:'۷۰-۱۰',a:60},{q:'۸۰-۱۰-۲۰',a:50},{q:'۹۵-۵-۶۰',a:30},
+  {q:'۱۰+۳۰+۵۰',a:90},{q:'۳۵+۵+۳',a:43},{q:'۷۹+۴',a:83},{q:'۶۲+۲+۲',a:66},
+  {q:'۷۰+۵+۵+۵',a:85},{q:'۶۵-۶',a:59},
+  {q:'۱۰+۲۰+۳۰+۸',a:68},{q:'۳۰-۱۰+۳۰',a:50},{q:'۱۰+۵+۵',a:20},{q:'۷۸+۲',a:80},
+  {q:'۲۱+۸',a:29},{q:'۵۶+۶',a:62},{q:'۱۷+۳',a:20},{q:'۷۹-۸',a:71},
+  {q:'۹۸-۵',a:93},{q:'۶۶+۴',a:70},{q:'۸+۲',a:10},{q:'۱۰-۶',a:4},
+  {q:'۷۳+۳',a:76},{q:'۳۴+۶',a:40},{q:'۵۵+۵',a:60},{q:'۸۵-۷',a:78},
+  {q:'۷۰-۱۰-۳۰',a:30},{q:'۱۲+۲+۲+۲',a:18},{q:'۵۶-۶',a:50},{q:'۶۹-۹',a:60},
+  {q:'۷۰-۶۰',a:10},{q:'۲۲-۲۰',a:2},{q:'۶۵+۵+۲',a:72},{q:'۵۰+۱۰+۱۰+۱۰',a:80},
+  {q:'۷۳+۲',a:75},{q:'۹۳+۵',a:98},{q:'۸۰-۱۰',a:70},{q:'۳۴+۴',a:38},
+  {q:'۴۵+۷',a:52},{q:'۱۹-۹',a:10}
+];
+let qPool=[];
+function getQuestion(){
+  if(!qPool.length) qPool=[...QUESTIONS].sort(()=>Math.random()-0.5);
+  return qPool.pop();
+}
+
+// =================== GAME STATE ===================
+let playerCount=1, playerNames=['',''], playerPositions=[0,0], currentPlayer=0;
+let currentQ=null, gameActive=false, diceRolling=false;
+let rolledActual=[0,0];
+
+// SNAKES: head → tail (you slide DOWN from head to tail)
+const SNAKES={17:7, 64:19, 54:34, 94:50};
+// LADDERS: bottom → top (you climb UP)
+const LADDERS={4:14, 9:31, 28:84, 63:81};
+
+// =================== BOARD ===================
+const PAD=8;
+let CS=62; // cell size, set dynamically
+let bc, bctx;
+
+const CELL_COLORS=[
+  '#1a0035','#0a1a3a','#0d2a18','#2a1800','#1a0018',
+  '#001018','#1a1200','#001a12','#100018','#080828'
+];
+const BORDER_COLORS=['#e040fb','#00b0ff','#00e676','#ffd740','#ff6e40','#40c4ff','#b2ff59','#ff4081','#64ffda','#ffab40'];
+
+// Returns pixel center of cell n (1-100)
+function cellPos(n){
+  if(n<1||n>100) return {x:-1,y:-1};
+  const idx=n-1;
+  const row=Math.floor(idx/10);   // 0 = cells 1-10, 9 = cells 91-100
+  const col=idx%10;
+  const visualRow=9-row;           // row 0 (1-10) is at BOTTOM visually
+  const visualCol=(row%2===0)?col:(9-col); // snake pattern
+  return {x:PAD+visualCol*CS+CS/2, y:PAD+visualRow*CS+CS/2};
+}
+
+function canvasSize(){ return PAD*2+CS*10; }
+
+function drawBoard(){
+  const SZ=canvasSize();
+  bctx.clearRect(0,0,SZ,SZ);
+
+  // Background
+  const bg=bctx.createLinearGradient(0,0,SZ,SZ);
+  bg.addColorStop(0,'#0a001a'); bg.addColorStop(1,'#001a0a');
+  bctx.fillStyle=bg; bctx.fillRect(0,0,SZ,SZ);
+
+  // Cells -- draw numbers for ALL cells
+  for(let n=1;n<=100;n++){
+    const {x,y}=cellPos(n);
+    const cx=x-CS/2, cy=y-CS/2;
+    const ci=(n-1)%10;
+
+    // Cell fill
+    bctx.fillStyle=CELL_COLORS[ci];
+    roundRect(bctx,cx+1,cy+1,CS-2,CS-2,5);
+    bctx.fill();
+
+    // Border glow
+    bctx.strokeStyle=BORDER_COLORS[ci];
+    bctx.lineWidth=1.5;
+    bctx.shadowColor=BORDER_COLORS[ci];
+    bctx.shadowBlur=4;
+    bctx.stroke();
+    bctx.shadowBlur=0;
+
+    // Number label
+    bctx.textAlign='center'; bctx.textBaseline='middle';
+    if(n===1){
+      // "شروع" in two lines
+      bctx.fillStyle='#39ff14';
+      bctx.font=`bold ${Math.max(8,CS*0.18)}px Tahoma`;
+      bctx.shadowColor='#39ff14'; bctx.shadowBlur=6;
+      bctx.fillText('شروع',x,y);
+      bctx.shadowBlur=0;
+    } else if(n===100){
+      bctx.fillStyle='#ffd700';
+      bctx.font=`bold ${Math.max(9,CS*0.2)}px Tahoma`;
+      bctx.shadowColor='#ffd700'; bctx.shadowBlur=8;
+      bctx.fillText('100',x,y);
+      bctx.shadowBlur=0;
+    } else {
+      bctx.fillStyle='rgba(255,255,255,0.9)';
+      bctx.font=`bold ${Math.max(8,CS*0.19)}px Tahoma`;
+      bctx.fillText(n,x,y);
+    }
+  }
+
+  drawLadders();
+  drawSnakes();
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+
+// =================== LADDERS (3D realistic) ===================
+function drawLadders(){
+  const ladderDefs=[[4,14],[9,31],[28,84],[63,81]];
+  const palettes=[
+    {rail:'#ffd700',rung:'#ffec6e',shadow:'#b8860b'},
+    {rail:'#ff9800',rung:'#ffcc80',shadow:'#e65100'},
+    {rail:'#00e676',rung:'#b9f6ca',shadow:'#00600a'},
+    {rail:'#40c4ff',rung:'#b3e5fc',shadow:'#0277bd'}
+  ];
+
+  ladderDefs.forEach(([bot,top],li)=>{
+    const pb=cellPos(bot), pt=cellPos(top);
+    const pal=palettes[li];
+
+    // Direction vector
+    const dx=pt.x-pb.x, dy=pt.y-pb.y;
+    const len=Math.sqrt(dx*dx+dy*dy);
+    if(len<1) return;
+    const ux=dx/len, uy=dy/len;
+    // Perpendicular (for rail offset)
+    const px_=-uy, py_=ux;
+    const halfW=CS*0.18; // half-width between rails
+
+    // --- Left rail (3D: draw shadow side first, then bright side) ---
+    const lx1=pb.x+px_*halfW, ly1=pb.y+py_*halfW;
+    const lx2=pt.x+px_*halfW, ly2=pt.y+py_*halfW;
+    const rx1=pb.x-px_*halfW, ry1=pb.y-py_*halfW;
+    const rx2=pt.x-px_*halfW, ry2=pt.y-py_*halfW;
+
+    // Shadow (dark offset)
+    const so=3;
+    bctx.beginPath();
+    bctx.moveTo(lx1+so,ly1+so); bctx.lineTo(lx2+so,ly2+so);
+    bctx.strokeStyle=pal.shadow; bctx.lineWidth=CS*0.1; bctx.lineCap='round';
+    bctx.stroke();
+    bctx.beginPath();
+    bctx.moveTo(rx1+so,ry1+so); bctx.lineTo(rx2+so,ry2+so);
+    bctx.stroke();
+
+    // Bright rails
+    bctx.shadowColor=pal.rail; bctx.shadowBlur=8;
+    bctx.beginPath();
+    bctx.moveTo(lx1,ly1); bctx.lineTo(lx2,ly2);
+    bctx.strokeStyle=pal.rail; bctx.lineWidth=CS*0.1; bctx.lineCap='round';
+    bctx.stroke();
+    bctx.beginPath();
+    bctx.moveTo(rx1,ry1); bctx.lineTo(rx2,ry2);
+    bctx.stroke();
+    bctx.shadowBlur=0;
+
+    // Highlight stripe on left rail
+    bctx.beginPath();
+    bctx.moveTo(lx1-px_*CS*0.02,ly1-py_*CS*0.02);
+    bctx.lineTo(lx2-px_*CS*0.02,ly2-py_*CS*0.02);
+    bctx.strokeStyle='rgba(255,255,255,0.45)'; bctx.lineWidth=CS*0.03;
+    bctx.stroke();
+    bctx.beginPath();
+    bctx.moveTo(rx1-px_*CS*0.02,ry1-py_*CS*0.02);
+    bctx.lineTo(rx2-px_*CS*0.02,ry2-py_*CS*0.02);
+    bctx.stroke();
+
+    // --- Rungs ---
+    const numRungs=Math.max(3,Math.round(len/(CS*0.55)));
+    for(let r=0;r<=numRungs;r++){
+      const t=r/numRungs;
+      const mx=pb.x+dx*t, my=pb.y+dy*t;
+      const rLx=mx+px_*halfW*1.05, rLy=my+py_*halfW*1.05;
+      const rRx=mx-px_*halfW*1.05, rRy=my-py_*halfW*1.05;
+
+      // Rung shadow
+      bctx.beginPath();
+      bctx.moveTo(rLx+so,rLy+so); bctx.lineTo(rRx+so,rRy+so);
+      bctx.strokeStyle=pal.shadow; bctx.lineWidth=CS*0.08; bctx.lineCap='round';
+      bctx.stroke();
+
+      // Rung face
+      bctx.beginPath();
+      bctx.moveTo(rLx,rLy); bctx.lineTo(rRx,rRy);
+      bctx.strokeStyle=pal.rung; bctx.lineWidth=CS*0.08;
+      bctx.shadowColor=pal.rung; bctx.shadowBlur=5;
+      bctx.stroke();
+      bctx.shadowBlur=0;
+
+      // Rung highlight
+      bctx.beginPath();
+      bctx.moveTo(rLx-px_*CS*0.01,rLy-py_*CS*0.01);
+      bctx.lineTo(rRx-px_*CS*0.01,rRy-py_*CS*0.01);
+      bctx.strokeStyle='rgba(255,255,255,0.4)'; bctx.lineWidth=CS*0.025;
+      bctx.stroke();
+    }
+
+    // Star at top
+    drawStar(bctx,pt.x,pt.y,CS*0.15,pal.rail);
+
+    // Bottom label circle
+    bctx.beginPath();
+    bctx.arc(pb.x,pb.y,CS*0.12,0,Math.PI*2);
+    bctx.fillStyle=pal.rail;
+    bctx.shadowColor=pal.rail; bctx.shadowBlur=10;
+    bctx.fill(); bctx.shadowBlur=0;
+    bctx.fillStyle='#000';
+    bctx.font=`bold ${Math.max(7,CS*0.15)}px Tahoma`;
+    bctx.textAlign='center'; bctx.textBaseline='middle';
+    bctx.fillText('▲',pb.x,pb.y);
+  });
+}
+
+function drawStar(ctx,cx,cy,r,color){
+  ctx.save();
+  ctx.fillStyle=color; ctx.shadowColor=color; ctx.shadowBlur=10;
+  ctx.beginPath();
+  for(let i=0;i<5;i++){
+    const a=(i*4*Math.PI/5)-Math.PI/2;
+    const ai=a+2*Math.PI/5;
+    ctx.lineTo(cx+Math.cos(a)*r, cy+Math.sin(a)*r);
+    ctx.lineTo(cx+Math.cos(ai)*r*0.38, cy+Math.sin(ai)*r*0.38);
+  }
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+// =================== SNAKES ===================
+// Fixed offsets so snakes don't re-randomize on each redraw
+const SNAKE_OFFSETS=[40,-40,35,-35];
+
+function drawSnakes(){
+  const snakeDefs=[[17,7],[64,19],[54,34],[94,50]];
+  const snakeColors=['#ff1744','#ff6d00','#aa00ff','#00b0ff'];
+
+  snakeDefs.forEach(([head,tail],si)=>{
+    const ph=cellPos(head), pt=cellPos(tail);
+    const c=snakeColors[si];
+    const off=SNAKE_OFFSETS[si];
+
+    // Midpoint control for bezier
+    const mx=(ph.x+pt.x)/2+off;
+    const my=(ph.y+pt.y)/2;
+    const cp1x=ph.x+(mx-ph.x)*0.5+off*0.3;
+    const cp1y=ph.y+(my-ph.y)*0.5;
+    const cp2x=pt.x+(mx-pt.x)*0.5-off*0.3;
+    const cp2y=pt.y+(my-pt.y)*0.5;
+
+    // Shadow body
+    bctx.save();
+    bctx.beginPath();
+    bctx.moveTo(pt.x+3,pt.y+3);
+    bctx.bezierCurveTo(cp2x+3,cp2y+3,cp1x+3,cp1y+3,ph.x+3,ph.y+3);
+    bctx.strokeStyle='rgba(0,0,0,0.45)'; bctx.lineWidth=CS*0.22; bctx.lineCap='round';
+    bctx.stroke();
+    bctx.restore();
+
+    // Main body
+    bctx.save();
+    bctx.beginPath();
+    bctx.moveTo(pt.x,pt.y);
+    bctx.bezierCurveTo(cp2x,cp2y,cp1x,cp1y,ph.x,ph.y);
+    bctx.strokeStyle=c; bctx.lineWidth=CS*0.22;
+    bctx.lineCap='round'; bctx.shadowColor=c; bctx.shadowBlur=10;
+    bctx.stroke(); bctx.shadowBlur=0;
+
+    // Lighter stripe
+    bctx.beginPath();
+    bctx.moveTo(pt.x,pt.y);
+    bctx.bezierCurveTo(cp2x,cp2y,cp1x,cp1y,ph.x,ph.y);
+    bctx.strokeStyle='rgba(255,255,255,0.22)'; bctx.lineWidth=CS*0.1;
+    bctx.setLineDash([CS*0.12,CS*0.15]); bctx.stroke(); bctx.setLineDash([]);
+    bctx.restore();
+
+    // Head circle
+    bctx.save();
+    bctx.fillStyle=c; bctx.shadowColor=c; bctx.shadowBlur=14;
+    bctx.beginPath(); bctx.arc(ph.x,ph.y,CS*0.2,0,Math.PI*2); bctx.fill();
+    bctx.shadowBlur=0;
+    // Eyes
+    const er=CS*0.045;
+    bctx.fillStyle='#fff';
+    bctx.beginPath(); bctx.arc(ph.x-CS*0.07,ph.y-CS*0.07,er,0,Math.PI*2); bctx.fill();
+    bctx.beginPath(); bctx.arc(ph.x+CS*0.07,ph.y-CS*0.07,er,0,Math.PI*2); bctx.fill();
+    bctx.fillStyle='#111';
+    bctx.beginPath(); bctx.arc(ph.x-CS*0.07,ph.y-CS*0.07,er*0.5,0,Math.PI*2); bctx.fill();
+    bctx.beginPath(); bctx.arc(ph.x+CS*0.07,ph.y-CS*0.07,er*0.5,0,Math.PI*2); bctx.fill();
+    // Tongue fork
+    bctx.strokeStyle='#ff2222'; bctx.lineWidth=CS*0.035;
+    bctx.beginPath();
+    bctx.moveTo(ph.x,ph.y+CS*0.18);
+    bctx.lineTo(ph.x-CS*0.09,ph.y+CS*0.28);
+    bctx.moveTo(ph.x,ph.y+CS*0.18);
+    bctx.lineTo(ph.x+CS*0.09,ph.y+CS*0.28);
+    bctx.stroke();
+    // Tail dot
+    bctx.fillStyle=c;
+    bctx.beginPath(); bctx.arc(pt.x,pt.y,CS*0.09,0,Math.PI*2); bctx.fill();
+    bctx.restore();
+  });
+}
+
+// =================== PIECES ===================
+function drawPieces(){
+  // Bright solid 3D colors, no neon - easy to spot on any cell
+  const baseColors=[
+    ['#e53935','#ff8a80','#b71c1c'],   // player1: vivid red
+    ['#fdd835','#fff59d','#f57f17']    // player2: vivid yellow
+  ];
+  for(let i=0;i<playerCount;i++){
+    if(playerPositions[i]<1) continue;
+    let {x,y}=cellPos(playerPositions[i]);
+    if(playerCount===2&&playerPositions[0]===playerPositions[1]) x+=(i===0?-CS*0.18:CS*0.18);
+    const [mid,hi,dark]=baseColors[i];
+    const r=CS*0.3;
+    bctx.save();
+    // Drop shadow
+    bctx.fillStyle='rgba(0,0,0,0.4)';
+    bctx.beginPath();
+    bctx.ellipse(x+2,y+r+3,r*0.8,r*0.25,0,0,Math.PI*2);
+    bctx.fill();
+    // 3D sphere gradient: bright highlight top-left, dark bottom-right
+    const g=bctx.createRadialGradient(x-r*0.35,y-r*0.38,r*0.04,x+r*0.1,y+r*0.1,r*1.12);
+    g.addColorStop(0,hi);
+    g.addColorStop(0.42,mid);
+    g.addColorStop(1,dark);
+    bctx.beginPath(); bctx.arc(x,y,r,0,Math.PI*2);
+    bctx.fillStyle=g; bctx.fill();
+    // Dark outline for contrast against any cell color
+    bctx.strokeStyle='rgba(0,0,0,0.6)'; bctx.lineWidth=1.8; bctx.stroke();
+    // Small white specular dot for 3D feel
+    bctx.beginPath(); bctx.arc(x-r*0.3,y-r*0.3,r*0.17,0,Math.PI*2);
+    bctx.fillStyle='rgba(255,255,255,0.72)'; bctx.fill();
+    bctx.restore();
+  }
+}
+
+function redrawBoard(){ drawBoard(); drawPieces(); }
+
+// =================== DICE ===================
+let diceCtx;
+
+function drawDice(val){
+  const S=82, r=12, p=10;
+  const ctx=diceCtx;
+  if(!ctx) return;
+  ctx.clearRect(0,0,S,S);
+
+  // Shadow
+  ctx.fillStyle='rgba(0,0,0,0.55)';
+  rrect(ctx,5,5,S-2,S-2,r+2); ctx.fill();
+
+  // Face
+  const g=ctx.createLinearGradient(0,0,S,S);
+  g.addColorStop(0,'#fffde7'); g.addColorStop(1,'#fff8e1');
+  rrect(ctx,1,1,S-2,S-2,r);
+  ctx.fillStyle=g; ctx.fill();
+
+  // Glow border
+  ctx.strokeStyle='#ffd700'; ctx.lineWidth=2;
+  ctx.shadowColor='#ffd700'; ctx.shadowBlur=10; ctx.stroke(); ctx.shadowBlur=0;
+
+  // Left/top 3D edge
+  rrect(ctx,1,1,S-2,S-2,r);
+  ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=1.5; ctx.stroke();
+
+  // Dots
+  const dots={
+    1:[[0.5,0.5]],
+    2:[[0.28,0.28],[0.72,0.72]],
+    3:[[0.28,0.28],[0.5,0.5],[0.72,0.72]],
+    4:[[0.28,0.28],[0.72,0.28],[0.28,0.72],[0.72,0.72]],
+    5:[[0.28,0.28],[0.72,0.28],[0.5,0.5],[0.28,0.72],[0.72,0.72]],
+    6:[[0.28,0.28],[0.72,0.28],[0.28,0.5],[0.72,0.5],[0.28,0.72],[0.72,0.72]]
+  };
+  const inner=S-p*2;
+  (dots[val]||dots[1]).forEach(([px,py])=>{
+    const dx=p+px*inner, dy=p+py*inner, dr=S*0.065;
+    const dg=ctx.createRadialGradient(dx-1,dy-1,0.5,dx,dy,dr);
+    dg.addColorStop(0,'#555'); dg.addColorStop(1,'#1a1a2e');
+    ctx.beginPath(); ctx.arc(dx,dy,dr,0,Math.PI*2);
+    ctx.fillStyle=dg; ctx.fill();
+  });
+}
+
+function rrect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+
+function rollDice(){
+  if(!gameActive||diceRolling) return;
+  playSound('roll');
+  diceRolling=true;
+  let frames=0;
+  document.getElementById('dice-label').textContent='در حال\nچرخش...';
+  function anim(){
+    const v=Math.floor(Math.random()*6)+1;
+    drawDice(v); frames++;
+    if(frames<22) setTimeout(anim,40+frames*3);
+    else{
+      drawDice(v); diceRolling=false;
+      document.getElementById('dice-label').textContent=`عدد ${v}\nآمد!`;
+      rolledActual[currentPlayer]=v;
+      setTimeout(()=>movePlayer(currentPlayer,v),400);
+    }
+  }
+  anim();
+}
+
+// =================== MOVEMENT ===================
+function movePlayer(pidx,steps){
+  const maxPos=100;
+  let step=0;
+  function stepMove(){
+    if(step<steps && playerPositions[pidx]<maxPos){
+      playerPositions[pidx]++;
+      redrawBoard(); step++;
+      setTimeout(stepMove,110);
+    } else {
+      afterLand(pidx);
+    }
+  }
+  stepMove();
+}
+
+function afterLand(pidx){
+  const pos=playerPositions[pidx];
+  if(pos===100){ winGame(pidx); return; }
+
+  if(LADDERS[pos]!==undefined){
+    const dest=LADDERS[pos];
+    setTimeout(()=>{
+      playSound('ladder');
+      showFeedback('🪜 نردبان! بالا رفتی!','#00e676',1300,()=>{
+        playerPositions[pidx]=dest; redrawBoard();
+        setTimeout(()=>askQuestion(pidx),400);
+      });
+    },300); return;
+  }
+
+  if(SNAKES[pos]!==undefined){
+    const dest=SNAKES[pos];
+    setTimeout(()=>{
+      playSound('snake');
+      showFeedback('🐍 مار! نیش خوردی!','#ff1744',1300,()=>{
+        playerPositions[pidx]=dest; redrawBoard();
+        setTimeout(()=>askQuestion(pidx),400);
+      });
+    },300); return;
+  }
+
+  setTimeout(()=>askQuestion(pidx),300);
+}
+
+// =================== QUESTION ===================
+function askQuestion(pidx){
+  currentQ=getQuestion();
+  document.getElementById('q-text').textContent=currentQ.q;
+  document.getElementById('q-input').value='';
+  document.getElementById('q-overlay').classList.add('show');
+  setTimeout(()=>document.getElementById('q-input').focus(),120);
+}
+
+document.getElementById('q-input').addEventListener('keydown',e=>{
+  if(e.key==='Enter') submitAnswer();
+});
+
+function submitAnswer(){
+  const val=parseInt(document.getElementById('q-input').value);
+  document.getElementById('q-overlay').classList.remove('show');
+
+  if(val===currentQ.a){
+    playSound('correct');
+    showFeedback('🎉 آفرین! درسته!','#39ff14',1300,()=>nextTurn());
+  } else {
+    playSound('wrong');
+    showFeedback('❌ اشتباهه! برمی‌گردی!','#ff1744',1300,()=>{
+      const rolled=rolledActual[currentPlayer]||0;
+      playerPositions[currentPlayer]=Math.max(0,playerPositions[currentPlayer]-rolled);
+      redrawBoard(); nextTurn();
+    });
+  }
+}
+
+// =================== FEEDBACK ===================
+function showFeedback(text,color,dur,cb){
+  const fb=document.getElementById('feedback');
+  const ft=document.getElementById('feedback-text');
+  ft.textContent=text; ft.style.color=color;
+  fb.classList.add('show');
+  setTimeout(()=>{ fb.classList.remove('show'); if(cb)cb(); },dur);
+}
+
+// =================== TURN ===================
+function nextTurn(){
+  if(playerCount===2) currentPlayer=1-currentPlayer;
+  updateTurnUI(); updatePositions();
+}
+
+function updateTurnUI(){
+  const name=playerNames[currentPlayer]||(currentPlayer===0?'بازیکن ۱':'بازیکن ۲');
+  const colors=['#00e5ff','#ff4dff'];
+  const c=colors[currentPlayer];
+  const el=document.getElementById('turn-indicator');
+  el.textContent='🎯 نوبت:\n'+name;
+  el.style.borderColor=c; el.style.color=c; el.style.boxShadow=`0 0 14px ${c}`;
+  document.getElementById('dice-label').textContent='روی تاس\nضربه بزن!';
+}
+
+function updatePositions(){
+  const names=['🔵 '+(playerNames[0]||'بازیکن ۱'),'🟣 '+(playerNames[1]||'بازیکن ۲')];
+  let txt='';
+  for(let i=0;i<playerCount;i++)
+    txt+=`${names[i]}:<br>خانه ${playerPositions[i]||'شروع'}<br>${i<playerCount-1?'<br>':''}`;
+  document.getElementById('positions-text').innerHTML=txt;
+}
+
+// =================== WIN ===================
+function winGame(pidx){
+  gameActive=false; playSound('win'); startConfetti();
+  let msg='';
+  if(playerCount===1){
+    const name=playerNames[0]||'قهرمان';
+    const msgs=[
+      `${name} عزیز، تو برنده شدی! 🏆 چه باهوش!`,
+      `آفرین ${name}! تو یه ستاره‌ای! ⭐`,
+      `${name} جان، مثل یه قهرمان بازی کردی! 🥇`
+    ];
+    msg=msgs[Math.floor(Math.random()*msgs.length)];
+  } else {
+    const name=playerNames[pidx]||`بازیکن ${pidx+1}`;
+    msg=`🎊 تبریک! ${name} برنده شد! 🏆 بازی فوق‌العاده‌ای بود!`;
+  }
+  document.getElementById('win-text').textContent=msg;
+  document.getElementById('win-overlay').classList.add('show');
+}
+
+// =================== CONFETTI ===================
+let confAnim=null;
+function startConfetti(){
+  const cc=document.getElementById('confetti-canvas');
+  cc.width=innerWidth; cc.height=innerHeight;
+  const ctx=cc.getContext('2d');
+  const parts=[];
+  for(let i=0;i<130;i++) parts.push({
+    x:Math.random()*innerWidth,y:-20,
+    vx:(Math.random()-0.5)*4,vy:Math.random()*4+2,
+    color:['#ffd700','#ff4dff','#00e5ff','#39ff14','#ff9800'][Math.floor(Math.random()*5)],
+    size:Math.random()*10+5,rot:Math.random()*360,vr:(Math.random()-0.5)*8
+  });
+  function draw(){
+    ctx.clearRect(0,0,cc.width,cc.height);
+    let alive=false;
+    parts.forEach(p=>{
+      p.x+=p.vx; p.y+=p.vy; p.rot+=p.vr;
+      if(p.y<cc.height+20) alive=true;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot*Math.PI/180);
+      ctx.fillStyle=p.color; ctx.fillRect(-p.size/2,-p.size/4,p.size,p.size/2);
+      ctx.restore();
+    });
+    if(alive) confAnim=requestAnimationFrame(draw);
+    else ctx.clearRect(0,0,cc.width,cc.height);
+  }
+  draw();
+}
+
+// =================== SOUND ===================
+let audioCtx=null;
+function getAC(){ if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+function beep(freq,dur,type,delay=0,vol=0.3){
+  try{
+    const ac=getAC(); const o=ac.createOscillator(); const g=ac.createGain();
+    o.connect(g); g.connect(ac.destination); o.type=type||'sine'; o.frequency.value=freq;
+    g.gain.setValueAtTime(vol,ac.currentTime+delay);
+    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+delay+dur);
+    o.start(ac.currentTime+delay); o.stop(ac.currentTime+delay+dur+0.05);
+  }catch(e){}
+}
+function playSound(type){
+  if(type==='roll'){ beep(300,0.08,'sawtooth'); beep(420,0.08,'sawtooth',0.06); }
+  else if(type==='correct'){ beep(523,0.12,'sine'); beep(659,0.12,'sine',0.13); beep(784,0.18,'sine',0.26); }
+  else if(type==='wrong'){ beep(220,0.18,'sawtooth'); beep(160,0.25,'sawtooth',0.16); }
+  else if(type==='ladder'){ [523,659,784,1047].forEach((f,i)=>beep(f,0.1,'sine',i*0.1)); }
+  else if(type==='snake'){ [300,250,200,160].forEach((f,i)=>beep(f,0.1,'sawtooth',i*0.1)); }
+  else if(type==='win'){ [523,659,784,1047,1319,1568].forEach((f,i)=>beep(f,0.14,'sine',i*0.1)); }
+}
+
+// =================== MODE ===================
+let selectedMode=1;
+function selectMode(n){
+  selectedMode=n;
+  document.querySelector('.mode-btn.solo').classList.toggle('selected',n===1);
+  document.querySelector('.mode-btn.duo').classList.toggle('selected',n===2);
+  document.getElementById('player2-box').style.display=n===2?'block':'none';
+}
+
+// =================== START ===================
+function startGame(){
+  const n1=document.getElementById('player1-name').value.trim()||'بازیکن ۱';
+  const n2=selectedMode===2?(document.getElementById('player2-name').value.trim()||'بازیکن ۲'):'';
+  playerNames=[n1,n2];
+  playerCount=selectedMode;
+  playerPositions=[0,0];
+  currentPlayer=0;
+  gameActive=true;
+  diceRolling=false;
+  rolledActual=[0,0];
+  qPool=[];
+
+  // Calculate cell size to fit viewport with safe margins
+  // Right panel ~150, left panel ~100, gaps ~80, extra safety margin ~40
+  const availW=Math.max(200, innerWidth - 150 - 100 - 120);
+  // Subtract padding + a little extra so board never clips vertically
+  const availH=Math.max(200, innerHeight - 60);
+  const maxCell=Math.floor(Math.min(availW,availH)/10);
+  CS=Math.min(58, Math.max(38, maxCell));
+
+  const SZ=canvasSize();
+  bc=document.getElementById('board-canvas');
+  bc.width=SZ; bc.height=SZ;
+  bctx=bc.getContext('2d');
+
+  diceCtx=document.getElementById('dice-canvas').getContext('2d');
+  document.getElementById('dice-canvas').onclick=rollDice;
+
+  document.getElementById('screen1').classList.remove('active');
+  document.getElementById('screen2').classList.add('active');
+
+  drawDice(1);
+  redrawBoard();
+  updateTurnUI();
+  updatePositions();
+}
+
+function goHome(){
+  gameActive=false;
+  if(confAnim){ cancelAnimationFrame(confAnim); confAnim=null; }
+  const cc=document.getElementById('confetti-canvas');
+  cc.getContext('2d').clearRect(0,0,cc.width,cc.height);
+  document.getElementById('win-overlay').classList.remove('show');
+  document.getElementById('q-overlay').classList.remove('show');
+  document.getElementById('feedback').classList.remove('show');
+  document.getElementById('screen2').classList.remove('active');
+  document.getElementById('screen1').classList.add('active');
+}
+</script>
+</body>
+</html>
